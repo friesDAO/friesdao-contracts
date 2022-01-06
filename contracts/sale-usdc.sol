@@ -27,24 +27,27 @@ interface IFriesDAOToken is IERC20 {
 
 contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
-    IERC20 public immutable USDC;
-    IFriesDAOToken public immutable FRIES;
+    IERC20 public immutable USDC;                // USDC token
+    IFriesDAOToken public immutable FRIES;       // FRIES token
+    uint256 public constant FRIES_DECIMALS = 18; // FRIES token decimals
+    uint256 public constant USDC_DECIMALS = 6;   // USDC token decimals
 
     bool public whitelistSaleActive = false;
     bool public publicSaleActive = false;
     bool public redeemActive = false;
     bool public refundActive = false;
 
-    uint256 public salePrice;
-    uint256 public whitelistCap;
-    uint256 public totalCap;
+    uint256 public salePrice;                     // Sale price of FRIES per USDC
+    uint256 public immutable baseWhitelistAmount; // Base whitelist amount of USDC available to purchase
+    uint256 public totalCap;                      // Total maximum amount of USDC in sale
+    uint256 public totalPurchased = 0;            // Total amount of USDC purchased in sale
 
-    mapping (address => bool) public whitelist;
-    uint256 public whitelistCount = 0;
+    mapping (address => uint256) public whitelist; // Mapping of account to whitelisted purchase amount in USDC in whitelisted sale
+    mapping (address => uint256) public purchased; // Mapping of account to total purchased amount in FRIES
+    mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
+    mapping (address => uint256) public vesting;   // Mapping of account to vesting period of purchased FRIES after redeem
 
-    mapping (address => uint256) public purchased;
-    mapping (address => uint256) public redeemed;
-    uint256 public totalPurchased = 0;
+    address public treasury; // friesDAO treasury address
 
     // Events
 
@@ -54,53 +57,59 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     event RefundActiveChanged(bool active);
 
     event SalePriceChanged(uint256 price);
-    event WhitelistCapChanged(uint256 amount);
+    event TotalCapChanged(uint256 totalCap);
 
     event Purchased(address indexed account, uint256 amount);
     event Redeemed(address indexed account, uint256 amount);
     event Refunded(address indexed account, uint256 amount);
 
+    event TreasuryChanged(address treasury);
+
     // Initialize sale parameters
 
-    constructor(address usdc, address fries) {
-        USDC = IERC20(usdc);
-        FRIES = IFriesDAOToken(fries);
-        salePrice = 42;                 // 42 FRIES per USDC
-        whitelistCap = 9420420 * 10**6; // 10,000,069 max USDC sold in whitelisted sale
-        totalCap = 18696969 * 10**6;    // Total 20,000,069 max USDC raised
+    constructor(address friesAddress, address treasuryAddress) {
+        USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // USDC token address on Ethereum mainnet
+        FRIES = IFriesDAOToken(friesAddress);                      // Set FRIES token
+        treasury = treasuryAddress;                                // Set friesDAO treasury address
+        salePrice = 42;                                            // 42 FRIES per USDC
+        baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS;          // Base 5,000 USDC purchasable for a whitelisted account
+        totalCap = 18696969 * 10 ** USDC_DECIMALS;                 // Total 18,696,969 max USDC raised
     }
+
+    /*
+     * ------------------
+     * EXTERNAL FUNCTIONS
+     * ------------------
+     */
 
     // Buy FRIES with USDC in whitelisted token sale
 
-    function buyWhitelistFries(uint256 value) external payable {
+    function buyWhitelistFries(uint256 value) external {
         require(whitelistSaleActive, "FriesDAOTokenSale: whitelist token sale is not active");
-        require(whitelist[_msgSender()], "FriesDAOTokenSale: not whitelisted");
         require(value > 0, "FriesDAOTokenSale: amount to purchase must be larger than zero");
+        require(purchased[_msgSender()] + value <= whitelist[_msgSender()], "FriesDAOTokenSale: amount over whitelist limit");
 
-        uint256 amount = value * 10**12 * salePrice;
-        require(purchased[_msgSender()] + amount <= whitelistCap * 10**12 * salePrice / whitelistCount, "FriesDAOTokenSale: amount over whitelist limit");
+        USDC.transferFrom(_msgSender(), treasury, value);                            // Transfer USDC amount to treasury
+        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate amount of FRIES at sale price with USDC value
+        purchased[_msgSender()] += amount;                                           // Add FRIES amount to purchased amount for account
+        totalPurchased += value;                                                     // Add USDC amount to total USDC purchased
 
-        USDC.transferFrom(_msgSender(), address(this), value);
-        purchased[_msgSender()] += amount;
-        totalPurchased += amount;
-
-        emit Purchased(_msgSender(), purchased[_msgSender()]);
+        emit Purchased(_msgSender(), amount);
     }
 
     // Buy FRIES with USDC in public token sale
 
-    function buyFries(uint256 value) external payable {
+    function buyFries(uint256 value) external {
         require(publicSaleActive, "FriesDAOTokenSale: public token sale is not active");
         require(value > 0, "FriesDAOTokenSale: amount to purchase must be larger than zero");
+        require(totalPurchased + value < totalCap, "FriesDAOTokenSale: amount over total sale limit");
 
-        uint256 amount = value * 10**12 * salePrice;
-        require(totalPurchased + amount <= totalCap * 10**12 * salePrice, "FriesDAOTokenSale: amount over total sale limit");
+        USDC.transferFrom(_msgSender(), treasury, value);                            // Transfer USDC amount to treasury
+        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate amount of FRIES at sale price with USDC value
+        purchased[_msgSender()] += amount;                                           // Add FRIES amount to purchased amount for account
+        totalPurchased += value;                                                     // Add USDC amount to total USDC purchased
 
-        USDC.transferFrom(_msgSender(), address(this), value);
-        purchased[_msgSender()] += amount;
-        totalPurchased += amount;
-
-        emit Purchased(_msgSender(), purchased[_msgSender()]);
+        emit Purchased(_msgSender(), amount);
     }
 
     // Redeem purchased FRIES for tokens
@@ -108,11 +117,13 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     function redeemFries() external {
         require(redeemActive, "FriesDAOTokenSale: redeeming for tokens is not active");
 
-        uint256 amount = purchased[_msgSender()] - redeemed[_msgSender()];
+        uint256 amount = purchased[_msgSender()] - redeemed[_msgSender()]; // Calculate redeemable FRIES amount
         require(amount > 0, "FriesDAOTokenSale: invalid redeem amount");
 
-        redeemed[_msgSender()] += amount;
-        FRIES.transfer(_msgSender(), amount);
+        redeemed[_msgSender()] += amount;     // Add FRIES redeem amount to redeemed total for account
+        FRIES.transfer(_msgSender(), amount); // Send FRIES redeem amount to account
+        // todo: add vesting here for vesting wallets
+
         emit Redeemed(_msgSender(), amount);
     }
 
@@ -122,36 +133,42 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         require(refundActive, "FriesDAOTokenSale: refunding redeemed tokens is not active");
         require(redeemed[_msgSender()] >= amount, "FriesDAOTokenSale: refund amount larger than tokens redeemed");
 
-        FRIES.burnFrom(_msgSender(), amount);
-        purchased[_msgSender()] -= amount;
-        redeemed[_msgSender()] -= amount;
-        USDC.transfer(_msgSender(), (amount / 10**12) / salePrice);
+        FRIES.burnFrom(_msgSender(), amount);                                                       // Remove FRIES refund amount from account
+        purchased[_msgSender()] -= amount;                                                          // Reduce purchased amount of account by FRIES refund amount
+        redeemed[_msgSender()] -= amount;                                                           // Reduce redeemed amount of account by FRIES refund amount
+        USDC.transfer(_msgSender(), (amount / 10 ** (FRIES_DECIMALS - USDC_DECIMALS)) / salePrice); // Send refund USDC amount at sale price to account
         
         emit Refunded(_msgSender(), amount);
     }
 
-    // Set whitelist sale enabled
+    /*
+     * --------------------
+     * RESTRICTED FUNCTIONS
+     * --------------------
+     */
+
+    // Set whitelist sale enabled status
 
     function setWhitelistSaleActive(bool active) external onlyOwner {
         whitelistSaleActive = active;
         emit WhitelistSaleActiveChanged(whitelistSaleActive);
     }
 
-    // Set public sale enabled
+    // Set public sale enabled status
 
     function setPublicSaleActive(bool active) external onlyOwner {
         publicSaleActive = active;
         emit PublicSaleActiveChanged(publicSaleActive);
     }
 
-    // Set redeem enabled
+    // Set redeem enabled status
 
     function setRedeemActive(bool active) external onlyOwner {
         redeemActive = active;
         emit RedeemActiveChanged(redeemActive);
     }
 
-    // Set refund enabled
+    // Set refund enabled status
 
     function setRefundActive(bool active) external onlyOwner {
         refundActive = active;
@@ -165,26 +182,41 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         emit SalePriceChanged(salePrice);
     }
 
-    // Change whitelist cap
+    // Change sale total cap
 
-    function setWhitelistCap(uint256 amount) external onlyOwner {
-        whitelistCap = amount;
-        emit WhitelistCapChanged(amount);
+    function setTotalCap(uint256 amount) external onlyOwner {
+        totalCap = amount;
+        emit TotalCapChanged(totalCap);
     }
 
-    // Add accounts to whitelist
+    // Whitelist accounts with base whitelist allocation
 
-    function whitelistAccounts(address[] memory accounts) external onlyOwner {
-        for (uint256 a = 0; a < accounts.length; a ++) {
-            whitelist[accounts[a]] = true;
-        }
-        whitelistCount += accounts.length;
+    function whitelistAccounts(address[] calldata accounts) external onlyOwner {
+
     }
 
-    // Withdraw USDC from sale contract to owner
+    // Whitelist accounts with custom whitelist allocation and vesting
 
-    function withdrawUSDC(uint256 amount) external onlyOwner {
-        USDC.transfer(owner(), amount);
+    function whitelistAccountsWithAllocation(
+        address[] calldata accounts,
+        uint256[] calldata allocations,
+        uint256[] calldata vestingPeriods
+    ) external onlyOwner {
+
+    }
+
+    // Set whitelist limit and vesting period for account
+
+    function setWhitelistParameters(address account, uint256 allocation, uint256 vestingPeriod) external onlyOwner {
+
+    }
+
+    // Change friesDAO treasury address
+
+    function setTreasury(address treasuryAddress) external {
+        require(_msgSender() == treasury, "FriesDAOTokenSale: caller is not the treasury");
+        treasury = treasuryAddress;
+        emit TreasuryChanged(treasury);
     }
 
 }
