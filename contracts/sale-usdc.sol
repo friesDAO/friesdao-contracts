@@ -192,7 +192,9 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     // Whitelist accounts with base whitelist allocation
 
     function whitelistAccounts(address[] calldata accounts) external onlyOwner {
-
+        for (uint256 a = 0; a < accounts.length; a ++) {
+            whitelist[accounts[a]] = baseWhitelistAmount;
+        }
     }
 
     // Whitelist accounts with custom whitelist allocation and vesting
@@ -202,13 +204,10 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         uint256[] calldata allocations,
         uint256[] calldata vestingPeriods
     ) external onlyOwner {
-
-    }
-
-    // Set whitelist limit and vesting period for account
-
-    function setWhitelistParameters(address account, uint256 allocation, uint256 vestingPeriod) external onlyOwner {
-
+        for (uint256 a = 0; a < accounts.length; a ++) {
+            whitelist[accounts[a]] = allocations[a];
+            vesting[accounts[a]] = vestingPeriods[a];
+        }
     }
 
     // Change friesDAO treasury address
