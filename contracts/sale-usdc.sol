@@ -19,10 +19,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+// FRIES token interface
+
 interface IFriesDAOToken is IERC20 {
     function mint(uint256 amount) external;
     function burn(uint256 amount) external;
     function burnFrom(address account, uint256 amount) external;
+}
+
+// FRIES token vesting interface
+
+interface IFriesVesting {
+    function vest(uint256 amount, uint256 period) external;
+    function vestFor(address account, uint256 amount, uint256 period) external;
 }
 
 contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
@@ -47,7 +56,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
     mapping (address => uint256) public vesting;   // Mapping of account to vesting period of purchased FRIES after redeem
 
-    address public treasury; // friesDAO treasury address
+    IFriesVesting public FriesVesting; // FRIES token vesting contract
+    address public treasury;           // friesDAO treasury address
 
     // Events
 
@@ -67,13 +77,16 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Initialize sale parameters
 
-    constructor(address friesAddress, address treasuryAddress) {
+    constructor(address friesAddress, address vesting, address treasuryAddress) {
         USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // USDC token address on Ethereum mainnet
-        FRIES = IFriesDAOToken(friesAddress);                      // Set FRIES token
-        treasury = treasuryAddress;                                // Set friesDAO treasury address
-        salePrice = 42;                                            // 42 FRIES per USDC
-        baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS;          // Base 5,000 USDC purchasable for a whitelisted account
-        totalCap = 18696969 * 10 ** USDC_DECIMALS;                 // Total 18,696,969 max USDC raised
+        FRIES = IFriesDAOToken(friesAddress);                      // Set FRIES token contract
+
+        salePrice = 42;                                   // 42 FRIES per USDC
+        baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS; // Base 5,000 USDC purchasable for a whitelisted account
+        totalCap = 18696969 * 10 ** USDC_DECIMALS;        // Total 18,696,969 max USDC raised
+
+        FriesVesting = IFriesVesting(vesting); // Set FRIES vesting contract
+        treasury = treasuryAddress;            // Set friesDAO treasury address
     }
 
     /*
@@ -119,10 +132,14 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
         uint256 amount = purchased[_msgSender()] - redeemed[_msgSender()]; // Calculate redeemable FRIES amount
         require(amount > 0, "FriesDAOTokenSale: invalid redeem amount");
+        redeemed[_msgSender()] += amount;                                  // Add FRIES redeem amount to redeemed total for account
 
-        redeemed[_msgSender()] += amount;     // Add FRIES redeem amount to redeemed total for account
-        FRIES.transfer(_msgSender(), amount); // Send FRIES redeem amount to account
-        // todo: add vesting here for vesting wallets
+        uint256 vestingDuration = vesting[_msgSender()];
+        if (vestingDuration == 0) {
+            FRIES.transfer(_msgSender(), amount);                        // Send redeemed FRIES to account
+        } else {
+            FriesVesting.vestFor(_msgSender(), amount, vestingDuration); // Vest redeemed FRIES for vesting duration
+        }
 
         emit Redeemed(_msgSender(), amount);
     }
