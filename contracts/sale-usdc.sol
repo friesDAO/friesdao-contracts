@@ -138,6 +138,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         if (vestingDuration == 0) {
             FRIES.transfer(_msgSender(), amount);                        // Send redeemed FRIES to account
         } else {
+            FRIES.approve(address(FriesVesting), amount);                // Approve FRIES amount for vesting on vesting contract
             FriesVesting.vestFor(_msgSender(), amount, vestingDuration); // Vest redeemed FRIES for vesting duration
         }
 
