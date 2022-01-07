@@ -32,6 +32,8 @@ interface IFriesDAOToken is IERC20 {
 interface IFriesVesting {
     function vest(uint256 amount, uint256 period) external;
     function vestFor(address account, uint256 amount, uint256 period) external;
+    function claimFries(uint256 scheduleId) external;
+    function claimableFries(address account, uint256 scheduleId) external view returns (uint256);
 }
 
 contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
