@@ -27,15 +27,6 @@ interface IFriesDAOToken is IERC20 {
     function burnFrom(address account, uint256 amount) external;
 }
 
-// FRIES token vesting interface
-
-interface IFriesVesting {
-    function vest(uint256 amount, uint256 period) external;
-    function vestFor(address account, uint256 amount, uint256 period) external;
-    function claimFries(uint256 scheduleId) external;
-    function claimableFries(address account, uint256 scheduleId) external view returns (uint256);
-}
-
 contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     IERC20 public immutable USDC;                // USDC token
@@ -58,8 +49,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
     mapping (address => uint256) public vesting;   // Mapping of account to vesting period of purchased FRIES after redeem
 
-    IFriesVesting public FriesVesting; // FRIES token vesting contract
     address public treasury;           // friesDAO treasury address
+    uint256 public vestingPercent;     // Percent tokens vested /1000
 
     // Events
 
@@ -76,10 +67,11 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     event Refunded(address indexed account, uint256 amount);
 
     event TreasuryChanged(address treasury);
+    event VestingPercentChanged(uint256 vestingPercent);
 
     // Initialize sale parameters
 
-    constructor(address friesAddress, address friesVesting, address treasuryAddress) {
+    constructor(address friesAddress, address treasuryAddress) {
         USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // USDC token address on Ethereum mainnet
         FRIES = IFriesDAOToken(friesAddress);                      // Set FRIES token contract
 
@@ -87,8 +79,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS; // Base 5,000 USDC purchasable for a whitelisted account
         totalCap = 18696969 * 10 ** USDC_DECIMALS;        // Total 18,696,969 max USDC raised
 
-        FriesVesting = IFriesVesting(friesVesting); // Set FRIES vesting contract
         treasury = treasuryAddress;                 // Set friesDAO treasury address
+        vestingPercent = 850;                       // 85% vesting for vested allocations
     }
 
     /*
@@ -138,10 +130,10 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
         uint256 vestingDuration = vesting[_msgSender()];
         if (vestingDuration == 0) {
-            FRIES.transfer(_msgSender(), amount);                        // Send redeemed FRIES to account
+            FRIES.transfer(_msgSender(), amount);                                  // Send redeemed FRIES to account
         } else {
-            FRIES.approve(address(FriesVesting), amount);                // Approve FRIES amount for vesting on vesting contract
-            FriesVesting.vestFor(_msgSender(), amount, vestingDuration); // Vest redeemed FRIES for vesting duration
+            FRIES.transfer(_msgSender(), amount * (1000 - vestingPercent) / 1000); // Send available FRIES to account
+            FRIES.transfer(treasury, amount * vestingPercent / 1000);              // Send vested FRIES to treasury
         }
 
         emit Redeemed(_msgSender(), amount);
@@ -236,6 +228,13 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         require(_msgSender() == treasury, "FriesDAOTokenSale: caller is not the treasury");
         treasury = treasuryAddress;
         emit TreasuryChanged(treasury);
+    }
+
+    // Change vesting percent
+
+    function setVestingPercent(uint256 percent) external onlyOwner {
+        vestingPercent = percent;
+        emit VestingPercentChanged(vestingPercent);
     }
 
 }
