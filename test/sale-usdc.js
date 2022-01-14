@@ -212,6 +212,15 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.redeemed(second.address)).to.equal(toETH(42))
     })
 
+    // Test special redeem FRIES
+
+    it("Special redeem FRIES", async () => {
+        await Sale.connect(third).redeemFries()
+        expect(await FRIES.balanceOf(third.address)).to.equal(toETH(4200 * 0.15))
+        expect(await FRIES.balanceOf(fifth.address)).to.equal(toETH(4200 * 0.85))
+        expect(await Sale.redeemed(third.address)).to.equal(toETH(4200))
+    })
+
     // Test redeem FRIES after already redeemed
 
     it("Redeeming FRIES after already redeemed should fail", async () => {
