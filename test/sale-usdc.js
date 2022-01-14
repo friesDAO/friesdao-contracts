@@ -72,16 +72,22 @@ describe("FriesDAOTokenSale", () => {
         await Sale.setBaseWhitelistAmount(toUSDC(10))
         expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(10))
         await Sale.setSalePrice(42)
-        await Sale.setBaseWhitelistAmount(toUSDC(10))
+        await Sale.setBaseWhitelistAmount(toUSDC(5000))
     })
 
     // Test sale whitelist
 
-    it("Whitelist accounts", async () => {
-        await Sale.whitelistAccounts([second.address, third.address])
-        expect(await Sale.whitelist(second.address)).to.equal(true)
-        expect(await Sale.whitelist(third.address)).to.equal(true)
-        expect(await Sale.whitelistCount()).to.equal(2)
+    it("Whitelist accounts with default whitelist allocation", async () => {
+        await Sale.whitelistAccounts([second.address])
+        expect(await Sale.whitelist(second.address)).to.equal(toUSDC(5000))
+    })
+
+    // Test sale whitelist with custom allocation and vesting
+
+    it("Whitelist accounts with custom allocation and vesting", async () => {
+        await Sale.whitelistAccountsWithAllocation([third.address], [toUSDC(10000)], [true])
+        expect(await Sale.whitelist(third.address)).to.equal(toUSDC(10000))
+        expect(await Sale.vesting(third.address)).to.equal(true)
     })
 
     // Test whitelist purchase before enabled

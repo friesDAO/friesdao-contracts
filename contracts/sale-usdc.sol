@@ -47,7 +47,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     mapping (address => uint256) public whitelist; // Mapping of account to whitelisted purchase amount in USDC in whitelisted sale
     mapping (address => uint256) public purchased; // Mapping of account to total purchased amount in FRIES
     mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
-    mapping (address => uint256) public vesting;   // Mapping of account to vesting period of purchased FRIES after redeem
+    mapping (address => bool) public vesting;      // Mapping of account to vesting of purchased FRIES after redeem
 
     address public treasury;           // friesDAO treasury address
     uint256 public vestingPercent;     // Percent tokens vested /1000
@@ -129,8 +129,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         require(amount > 0, "FriesDAOTokenSale: invalid redeem amount");
         redeemed[_msgSender()] += amount;                                  // Add FRIES redeem amount to redeemed total for account
 
-        uint256 vestingDuration = vesting[_msgSender()];
-        if (vestingDuration == 0) {
+        if (!vesting[_msgSender()]) {
             FRIES.transfer(_msgSender(), amount);                                  // Send redeemed FRIES to account
         } else {
             FRIES.transfer(_msgSender(), amount * (1000 - vestingPercent) / 1000); // Send available FRIES to account
@@ -222,11 +221,11 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     function whitelistAccountsWithAllocation(
         address[] calldata accounts,
         uint256[] calldata allocations,
-        uint256[] calldata vestingPeriods
+        bool[] calldata vestingEnabled
     ) external onlyOwner {
         for (uint256 a = 0; a < accounts.length; a ++) {
             whitelist[accounts[a]] = allocations[a];
-            vesting[accounts[a]] = vestingPeriods[a];
+            vesting[accounts[a]] = vestingEnabled[a];
         }
     }
 
