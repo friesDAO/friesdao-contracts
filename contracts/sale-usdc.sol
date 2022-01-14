@@ -39,10 +39,10 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     bool public redeemActive = false;
     bool public refundActive = false;
 
-    uint256 public salePrice;                     // Sale price of FRIES per USDC
-    uint256 public immutable baseWhitelistAmount; // Base whitelist amount of USDC available to purchase
-    uint256 public totalCap;                      // Total maximum amount of USDC in sale
-    uint256 public totalPurchased = 0;            // Total amount of USDC purchased in sale
+    uint256 public salePrice;           // Sale price of FRIES per USDC
+    uint256 public baseWhitelistAmount; // Base whitelist amount of USDC available to purchase
+    uint256 public totalCap;            // Total maximum amount of USDC in sale
+    uint256 public totalPurchased = 0;  // Total amount of USDC purchased in sale
 
     mapping (address => uint256) public whitelist; // Mapping of account to whitelisted purchase amount in USDC in whitelisted sale
     mapping (address => uint256) public purchased; // Mapping of account to total purchased amount in FRIES
@@ -60,6 +60,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     event RefundActiveChanged(bool active);
 
     event SalePriceChanged(uint256 price);
+    event BaseWhitelistAmountChanged(uint256 baseWhitelistAmount);
     event TotalCapChanged(uint256 totalCap);
 
     event Purchased(address indexed account, uint256 amount);
@@ -192,6 +193,13 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     function setSalePrice(uint256 price) external onlyOwner {
         salePrice = price;
         emit SalePriceChanged(salePrice);
+    }
+
+    // Change base whitelist amount
+
+    function setBaseWhitelistAmount(uint256 amount) external onlyOwner {
+        baseWhitelistAmount = amount;
+        emit BaseWhitelistAmountChanged(baseWhitelistAmount);
     }
 
     // Change sale total cap

@@ -59,10 +59,8 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.refundActive()).to.equal(false)
 
         expect(await Sale.salePrice()).to.equal(42)
-        expect(await Sale.whitelistCap()).to.equal(toUSDC(9420420))
+        expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(5000))
         expect(await Sale.totalCap()).to.equal(toUSDC(18696969))
-
-        expect(await Sale.whitelistCount()).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(0)
     })
 
@@ -71,10 +69,10 @@ describe("FriesDAOTokenSale", () => {
     it("Owner can change parameters", async () => {
         await Sale.setSalePrice(10)
         expect(await Sale.salePrice()).to.equal(10)
-        await Sale.setWhitelistCap(toUSDC(10))
-        expect(await Sale.whitelistCap()).to.equal(toUSDC(10))
+        await Sale.setBaseWhitelistAmount(toUSDC(10))
+        expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(10))
         await Sale.setSalePrice(42)
-        await Sale.setWhitelistCap(toUSDC(9420420))
+        await Sale.setBaseWhitelistAmount(toUSDC(10))
     })
 
     // Test sale whitelist
@@ -242,17 +240,5 @@ describe("FriesDAOTokenSale", () => {
     it("Set refund ended", async () => {
         await Sale.setRefundActive(false)
         expect(await Sale.refundActive()).to.equal(false)
-    })
-
-    // Test USDC withdraw
-
-    it("Withdraw USDC", async () => {
-        const [ balance, usdcBefore ] = await Promise.all([
-            USDC.balanceOf(Sale.address),
-            USDC.balanceOf(deployer.address)
-        ])
-        await Sale.withdrawUSDC(balance)
-        expect(await USDC.balanceOf(Sale.address)).to.equal(0)
-        expect(await USDC.balanceOf(deployer.address)).to.equal(usdcBefore.add(toUSDC(1)))
     })
 })
