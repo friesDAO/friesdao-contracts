@@ -77,10 +77,10 @@ contract FriesDAOLiquidityStaking is Ownable {
 
     // Initialize liquidity staking data
 
-    constructor(address fries) {
+    constructor(address fries, uint256 start) {
         FRIES = IERC20(fries);
         friesPerBlock = 1 ether; // 1 FRIES distributed per block
-        startBlock = 0;          // Rewards start at block 0
+        startBlock = start;      // Rewards start
     }
 
     // Return number of pools

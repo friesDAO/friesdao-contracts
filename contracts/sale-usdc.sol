@@ -49,8 +49,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
     mapping (address => bool) public vesting;      // Mapping of account to vesting of purchased FRIES after redeem
 
-    address public treasury;           // friesDAO treasury address
-    uint256 public vestingPercent;     // Percent tokens vested /1000
+    address public treasury;       // friesDAO treasury address
+    uint256 public vestingPercent; // Percent tokens vested /1000
 
     // Events
 
@@ -80,8 +80,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS; // Base 5,000 USDC purchasable for a whitelisted account
         totalCap = 18696969 * 10 ** USDC_DECIMALS;        // Total 18,696,969 max USDC raised
 
-        treasury = treasuryAddress;                 // Set friesDAO treasury address
-        vestingPercent = 850;                       // 85% vesting for vested allocations
+        treasury = treasuryAddress; // Set friesDAO treasury address
+        vestingPercent = 850;       // 85% vesting for vested allocations
     }
 
     /*
