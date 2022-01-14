@@ -125,6 +125,16 @@ describe("FriesDAOTokenSale", () => {
         await expect(Sale.connect(second).buyWhitelistFries(toUSDC(6000))).to.be.reverted
     })
 
+    // Test special whitelist purchase
+
+    it("Special whitelisted FRIES purchase", async () => {
+        await Sale.connect(third).buyWhitelistFries(toUSDC(100))
+        expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(101))
+        expect(await Sale.purchased(third.address)).to.equal(toETH(4200))
+        expect(await Sale.redeemed(third.address)).to.equal(0)
+        expect(await Sale.totalPurchased()).to.equal(toUSDC(101))
+    })
+
     // Test disabling whitelist sale
 
     it("Set whitelist sale ended", async () => {
@@ -149,10 +159,10 @@ describe("FriesDAOTokenSale", () => {
 
     it("Regular FRIES purchase", async () => {
         await Sale.connect(fourth).buyFries(toUSDC(1))
-        expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1 * 2))
+        expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(102))
         expect(await Sale.purchased(fourth.address)).to.equal(toETH(42))
         expect(await Sale.redeemed(fourth.address)).to.equal(0)
-        expect(await Sale.totalPurchased()).to.equal(toUSDC(1 * 2))
+        expect(await Sale.totalPurchased()).to.equal(toUSDC(102))
     })
 
     // Test regular purchase over total limit
@@ -191,7 +201,7 @@ describe("FriesDAOTokenSale", () => {
     // Test redeem FRIES without purchased
 
     it("Redeem FRIES without purchased should fail", async () => {
-        await expect(Sale.connect(third).redeemFries()).to.be.reverted
+        await expect(Sale.connect(deployer).redeemFries()).to.be.reverted
     })
 
     // Test redeem FRIES
@@ -235,7 +245,7 @@ describe("FriesDAOTokenSale", () => {
         const usdcBefore = await USDC.balanceOf(second.address)
         await FRIES.connect(second).approve(Sale.address, toETH(42))
         await Sale.connect(second).refundFries(toETH(42))
-        expect(await USDC.balanceOf(Sale.address)).to.equal(toUSDC(1))
+        expect(await USDC.balanceOf(Sale.address)).to.equal(toUSDC(101))
         expect(await USDC.balanceOf(second.address)).to.equal(usdcBefore.add(toUSDC(1)))
         expect(await Sale.purchased(second.address)).to.equal(0)
         expect(await Sale.redeemed(second.address)).to.equal(0)
