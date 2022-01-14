@@ -113,10 +113,10 @@ describe("FriesDAOTokenSale", () => {
 
     it("Whitelisted FRIES purchase", async () => {
         await Sale.connect(second).buyWhitelistFries(toUSDC(1))
-        expect(await USDC.balanceOf(Sale.address)).to.equal(toUSDC(1))
+        expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1))
         expect(await Sale.purchased(second.address)).to.equal(toETH(42))
         expect(await Sale.redeemed(second.address)).to.equal(0)
-        expect(await Sale.totalPurchased()).to.equal(toETH(42))
+        expect(await Sale.totalPurchased()).to.equal(toUSDC(1))
     })
 
     // Test whitelist purchase over limit
@@ -149,10 +149,10 @@ describe("FriesDAOTokenSale", () => {
 
     it("Regular FRIES purchase", async () => {
         await Sale.connect(fourth).buyFries(toUSDC(1))
-        expect(await USDC.balanceOf(Sale.address)).to.equal(toUSDC(1 * 2))
+        expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1 * 2))
         expect(await Sale.purchased(fourth.address)).to.equal(toETH(42))
         expect(await Sale.redeemed(fourth.address)).to.equal(0)
-        expect(await Sale.totalPurchased()).to.equal(toETH(42 * 2))
+        expect(await Sale.totalPurchased()).to.equal(toUSDC(1 * 2))
     })
 
     // Test regular purchase over total limit
@@ -231,6 +231,7 @@ describe("FriesDAOTokenSale", () => {
     // Test FRIES refund
 
     it("Refund FRIES purchase", async () => {
+        await USDC.connect(fifth).transfer(Sale.address, await USDC.balanceOf(fifth.address))
         const usdcBefore = await USDC.balanceOf(second.address)
         await FRIES.connect(second).approve(Sale.address, toETH(42))
         await Sale.connect(second).refundFries(toETH(42))
