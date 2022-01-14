@@ -72,9 +72,9 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Initialize sale parameters
 
-    constructor(address friesAddress, address treasuryAddress) {
-        USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // USDC token address on Ethereum mainnet
-        FRIES = IFriesDAOToken(friesAddress);                      // Set FRIES token contract
+    constructor(address usdcAddress, address friesAddress, address treasuryAddress) {
+        USDC = IERC20(usdcAddress);           // USDC token
+        FRIES = IFriesDAOToken(friesAddress); // Set FRIES token contract
 
         salePrice = 42;                                   // 42 FRIES per USDC
         baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS; // Base 5,000 USDC purchasable for a whitelisted account

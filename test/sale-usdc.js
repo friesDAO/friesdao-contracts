@@ -11,7 +11,7 @@ const toUSDC = num => ethers.utils.parseUnits(num.toString(), 6)
 describe("FriesDAOTokenSale", () => {
     // FRIES token sale test data
 
-    let deployer, second, third, fourth
+    let deployer, second, third, fourth, fifth
     let USDCContract, FriesContract, SaleContract
     let USDC, FRIES, Sale
 
@@ -19,7 +19,7 @@ describe("FriesDAOTokenSale", () => {
 
     before(async () => {
         [
-            [ deployer, second, third, fourth ],
+            [ deployer, second, third, fourth, fifth ],
             USDCContract,
             FriesContract,
             SaleContract
@@ -36,7 +36,7 @@ describe("FriesDAOTokenSale", () => {
     it("Deploy successfully", async () => {
         USDC = await USDCContract.deploy()
         FRIES = await FriesContract.deploy()
-        Sale = await SaleContract.deploy(USDC.address, FRIES.address)
+        Sale = await SaleContract.deploy(USDC.address, FRIES.address, fifth.address)
 
         await Promise.all([
             USDC.mint(deployer.address, toUSDC(10**6)),
@@ -122,7 +122,7 @@ describe("FriesDAOTokenSale", () => {
     // Test whitelist purchase over limit
 
     it("Whitelisted FRIES purchase over limit should fail", async () => {
-        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(9420420 / 2))).to.be.reverted
+        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(6000))).to.be.reverted
     })
 
     // Test disabling whitelist sale
