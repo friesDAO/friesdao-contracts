@@ -250,11 +250,10 @@ describe("FriesDAOTokenSale", () => {
     // Test FRIES refund
 
     it("Refund FRIES purchase", async () => {
-        await USDC.connect(fifth).transfer(Sale.address, await USDC.balanceOf(fifth.address))
+        await USDC.connect(fifth).approve(Sale.address, toETH(10000000))
         const usdcBefore = await USDC.balanceOf(second.address)
         await FRIES.connect(second).approve(Sale.address, toETH(42))
         await Sale.connect(second).refundFries(toETH(42))
-        expect(await USDC.balanceOf(Sale.address)).to.equal(toUSDC(101))
         expect(await USDC.balanceOf(second.address)).to.equal(usdcBefore.add(toUSDC(1)))
         expect(await Sale.purchased(second.address)).to.equal(0)
         expect(await Sale.redeemed(second.address)).to.equal(0)

@@ -95,12 +95,14 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     function buyWhitelistFries(uint256 value) external {
         require(whitelistSaleActive, "FriesDAOTokenSale: whitelist token sale is not active");
         require(value > 0, "FriesDAOTokenSale: amount to purchase must be larger than zero");
-        require(purchased[_msgSender()] + value <= whitelist[_msgSender()], "FriesDAOTokenSale: amount over whitelist limit");
 
-        USDC.transferFrom(_msgSender(), treasury, value);                            // Transfer USDC amount to treasury
-        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate amount of FRIES at sale price with USDC value
-        purchased[_msgSender()] += amount;                                           // Add FRIES amount to purchased amount for account
-        totalPurchased += value;                                                     // Add USDC amount to total USDC purchased
+        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice;                         // Calculate amount of FRIES at sale price with USDC value
+        uint256 whitelistMax = whitelist[_msgSender()] * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate maximum amount of FRIES available for purchase
+        require(purchased[_msgSender()] + amount <= whitelistMax, "FriesDAOTokenSale: amount over whitelist limit");
+
+        USDC.transferFrom(_msgSender(), treasury, value); // Transfer USDC amount to treasury
+        purchased[_msgSender()] += amount;                // Add FRIES amount to purchased amount for account
+        totalPurchased += value;                          // Add USDC amount to total USDC purchased
 
         emit Purchased(_msgSender(), amount);
     }
