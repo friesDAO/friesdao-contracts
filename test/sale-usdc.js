@@ -122,7 +122,7 @@ describe("FriesDAOTokenSale", () => {
     // Test whitelist purchase over limit
 
     it("Whitelisted FRIES purchase over limit should fail", async () => {
-        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(6000))).to.be.reverted
+        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(5000))).to.be.reverted
     })
 
     // Test special whitelist purchase
