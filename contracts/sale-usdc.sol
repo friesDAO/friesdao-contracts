@@ -145,10 +145,10 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         require(refundActive, "FriesDAOTokenSale: refunding redeemed tokens is not active");
         require(redeemed[_msgSender()] >= amount, "FriesDAOTokenSale: refund amount larger than tokens redeemed");
 
-        FRIES.burnFrom(_msgSender(), amount);                                                       // Remove FRIES refund amount from account
-        purchased[_msgSender()] -= amount;                                                          // Reduce purchased amount of account by FRIES refund amount
-        redeemed[_msgSender()] -= amount;                                                           // Reduce redeemed amount of account by FRIES refund amount
-        USDC.transfer(_msgSender(), (amount / 10 ** (FRIES_DECIMALS - USDC_DECIMALS)) / salePrice); // Send refund USDC amount at sale price to account
+        FRIES.burnFrom(_msgSender(), amount);                                                                     // Remove FRIES refund amount from account
+        purchased[_msgSender()] -= amount;                                                                        // Reduce purchased amount of account by FRIES refund amount
+        redeemed[_msgSender()] -= amount;                                                                         // Reduce redeemed amount of account by FRIES refund amount
+        USDC.transferFrom(treasury, _msgSender(), (amount / 10 ** (FRIES_DECIMALS - USDC_DECIMALS)) / salePrice); // Send refund USDC amount at sale price to account
         
         emit Refunded(_msgSender(), amount);
     }
