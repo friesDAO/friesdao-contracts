@@ -18,6 +18,9 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";        //e
+
+import "hardhat/console.sol";
 
 // FRIES token interface
 
@@ -52,6 +55,9 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     address public treasury;       // friesDAO treasury address
     uint256 public vestingPercent; // Percent tokens vested /1000
 
+    mapping(address => uint) public hasClaimed;     //e
+    bytes32 public merkleRoot;                      //e
+
     // Events
 
     event WhitelistSaleActiveChanged(bool active);
@@ -72,7 +78,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Initialize sale parameters
 
-    constructor(address usdcAddress, address friesAddress, address treasuryAddress) {
+    constructor(address usdcAddress, address friesAddress, address treasuryAddress, bytes32 _root) {
         USDC = IERC20(usdcAddress);           // USDC token
         FRIES = IFriesDAOToken(friesAddress); // Set FRIES token contract
 
@@ -82,6 +88,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
         treasury = treasuryAddress; // Set friesDAO treasury address
         vestingPercent = 850;       // 85% vesting for vested allocations
+
+        merkleRoot = _root; //e
     }
 
     /*
@@ -92,14 +100,19 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Buy FRIES with USDC in whitelisted token sale
 
-    function buyWhitelistFries(uint256 value) external {
+    function buyWhitelistFries(uint256 value, uint whitelistMax, bool _vesting, bytes32[] calldata proof) external {
         require(whitelistSaleActive, "FriesDAOTokenSale: whitelist token sale is not active");
         require(value > 0, "FriesDAOTokenSale: amount to purchase must be larger than zero");
 
+        bytes32 leaf = keccak256(abi.encodePacked(msg.sender, whitelistMax, _vesting)); //e
+        bool isValidLeaf = MerkleProof.verify(proof, merkleRoot, leaf);                 //e
+        require(isValidLeaf, "NotWhitelisted");                                         //e
+
         uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice;                         // Calculate amount of FRIES at sale price with USDC value
-        uint256 whitelistMax = whitelist[_msgSender()] * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate maximum amount of FRIES available for purchase
+        //uint256 whitelistMax = whitelist[_msgSender()] * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate maximum amount of FRIES available for purchase
         require(purchased[_msgSender()] + amount <= whitelistMax, "FriesDAOTokenSale: amount over whitelist limit");
 
+        if (_vesting) vesting[_msgSender()] = true;         //e
         USDC.transferFrom(_msgSender(), treasury, value); // Transfer USDC amount to treasury
         purchased[_msgSender()] += amount;                // Add FRIES amount to purchased amount for account
         totalPurchased += value;                          // Add USDC amount to total USDC purchased
@@ -160,6 +173,11 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
      * RESTRICTED FUNCTIONS
      * --------------------
      */
+
+    // set the merkle root
+    function setRoot(bytes32 _root) external onlyOwner {    //e
+        merkleRoot = _root;
+    }
 
     // Set whitelist sale enabled status
 

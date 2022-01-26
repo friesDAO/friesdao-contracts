@@ -2,24 +2,57 @@
 
 const { expect } = require("chai")
 const { ethers } = require("hardhat")
+const keccak256  = require("keccak256")
+const { MerkleTree } = require("merkletreejs")
 
 const toETH = num => ethers.utils.parseEther(num.toString())
 const toUSDC = num => ethers.utils.parseUnits(num.toString(), 6)
+
+
+//////////////////////////////e /////////////////////////////////////////////////
+function makeleaf(_address, _data, _decimals) {
+    const amount = _data[0]
+    const vesting = _data[1]
+    const addr = ethers.utils.getAddress(_address)
+    const value = ethers.utils.parseUnits(amount.toString(), _decimals).toString()    
+    const z = ethers.utils.solidityKeccak256(["address", "uint256", "bool"], [addr, value, vesting]).slice(2)    
+    return Buffer.from(z, "hex")
+}
+
+const whitelist = {
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": [210000, false],    // 5k WL (5k * 42) vesting FALSE      second
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": [420000, false],   // 10 WL vesting FALSE      third
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": [5250000, true]    // 125k WL vesting TRUE     fourth
+}
+
+const airdrop = Object.entries(whitelist).map( ([a, d]) => {
+    const z = makeleaf(a, d, 18)
+    return z
+})
+
+const tree = new MerkleTree(
+    airdrop,
+    keccak256,
+    { sort: true }
+)
+//////////////////////////////////////////////////////////////////////////////
 
 // Test FRIES token sale
 
 describe("FriesDAOTokenSale", () => {
     // FRIES token sale test data
 
-    let deployer, second, third, fourth, fifth
+    let deployer, second, third, fourth, fifth, sixth
     let USDCContract, FriesContract, SaleContract
     let USDC, FRIES, Sale
+    var leaf    //e
+    var proof   //e
 
     // Load deployment data
 
     before(async () => {
         [
-            [ deployer, second, third, fourth, fifth ],
+            [ deployer, second, third, fourth, fifth, sixth ],
             USDCContract,
             FriesContract,
             SaleContract
@@ -36,17 +69,19 @@ describe("FriesDAOTokenSale", () => {
     it("Deploy successfully", async () => {
         USDC = await USDCContract.deploy()
         FRIES = await FriesContract.deploy()
-        Sale = await SaleContract.deploy(USDC.address, FRIES.address, fifth.address)
+        Sale = await SaleContract.deploy(USDC.address, FRIES.address, fifth.address, tree.getHexRoot()) //e
 
         await Promise.all([
             USDC.mint(deployer.address, toUSDC(10**6)),
             USDC.mint(second.address, toUSDC(10**6)),
             USDC.mint(third.address, toUSDC(10**6)),
             USDC.mint(fourth.address, toUSDC(10**6)),
+            USDC.mint(sixth.address, toUSDC(10**6)),
             USDC.connect(deployer).approve(Sale.address, toUSDC(10**18)),
             USDC.connect(second).approve(Sale.address, toUSDC(10**18)),
             USDC.connect(third).approve(Sale.address, toUSDC(10**18)),
-            USDC.connect(fourth).approve(Sale.address, toUSDC(10**18))
+            USDC.connect(fourth).approve(Sale.address, toUSDC(10**18)),
+            USDC.connect(sixth).approve(Sale.address, toUSDC(10**18))
         ])
     })
 
@@ -73,8 +108,12 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(10))
         await Sale.setSalePrice(42)
         await Sale.setBaseWhitelistAmount(toUSDC(5000))
+
+        await Sale.setRoot(tree.getHexRoot())       //e
+        await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted   //e
     })
 
+    /*
     // Test sale whitelist
 
     it("Whitelist accounts with default whitelist allocation", async () => {
@@ -89,11 +128,19 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.whitelist(third.address)).to.equal(toUSDC(10000))
         expect(await Sale.vesting(third.address)).to.equal(true)
     })
+    */
 
     // Test whitelist purchase before enabled
 
     it("Whitelisted FRIES purchase before enabled should fail", async () => {
-        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(1))).to.be.reverted
+        leaf = makeleaf(second.address, [210000, false], 18)
+        proof = tree.getHexProof(leaf)
+        await expect(Sale.connect(second).buyWhitelistFries(
+            toUSDC(1),
+            toETH(210000),
+            false,
+            proof
+        )).to.be.revertedWith("FriesDAOTokenSale: whitelist token sale is not active")
     })
 
     // Test enabling whitelist sale
@@ -105,14 +152,30 @@ describe("FriesDAOTokenSale", () => {
 
     // Test non-whitelisted whitelist purchase
 
-    it("Non-whitelisted whitelist purchase should fail", async () => [
-        await expect(Sale.connect(fourth).buyWhitelistFries(toUSDC(1))).to.be.reverted
-    ])
+    it("Non-whitelisted whitelist purchase should fail", async () => {
+        leaf = makeleaf(deployer.address, [210000, false], 18)
+        proof = tree.getHexProof(leaf)
+        //await expect(Sale.connect(fourth).buyWhitelistFries(toUSDC(1))).to.be.reverted
+        await expect(Sale.connect(deployer).buyWhitelistFries(
+            toUSDC(1),
+            toETH(210000),
+            false,
+            proof
+        )).to.be.revertedWith("NotWhitelisted")
+    })
 
     // Test whitelist purchase
 
     it("Whitelisted FRIES purchase", async () => {
-        await Sale.connect(second).buyWhitelistFries(toUSDC(1))
+        //await Sale.connect(second).buyWhitelistFries(toUSDC(1))
+        leaf = makeleaf(second.address, [210000, false], 18)
+        proof = tree.getHexProof(leaf)
+        await Sale.connect(second).buyWhitelistFries(
+            toUSDC(1),
+            toETH(210000),
+            false,
+            proof
+        )
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1))
         expect(await Sale.purchased(second.address)).to.equal(toETH(42))
         expect(await Sale.redeemed(second.address)).to.equal(0)
@@ -122,16 +185,30 @@ describe("FriesDAOTokenSale", () => {
     // Test whitelist purchase over limit
 
     it("Whitelisted FRIES purchase over limit should fail", async () => {
-        await expect(Sale.connect(second).buyWhitelistFries(toUSDC(5000))).to.be.reverted
+        //await expect(Sale.connect(second).buyWhitelistFries(toUSDC(5000))).to.be.reverted
+        await expect(Sale.connect(second).buyWhitelistFries(
+            toUSDC(5000),
+            toETH(210000),
+            false,
+            proof
+        )).to.revertedWith("FriesDAOTokenSale: amount over whitelist limit")
     })
 
     // Test special whitelist purchase
 
-    it("Special whitelisted FRIES purchase", async () => {
-        await Sale.connect(third).buyWhitelistFries(toUSDC(100))
+    it("Special whitelisted FRIES purchase", async () => { 
+        //await Sale.connect(third).buyWhitelistFries(toUSDC(100))
+        leaf = makeleaf(fourth.address, [5250000, true], 18)
+        proof = tree.getHexProof(leaf)
+        await Sale.connect(fourth).buyWhitelistFries(
+            toUSDC(100),
+            toETH(5250000),
+            true,
+            proof
+        )
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(101))
-        expect(await Sale.purchased(third.address)).to.equal(toETH(4200))
-        expect(await Sale.redeemed(third.address)).to.equal(0)
+        expect(await Sale.purchased(fourth.address)).to.equal(toETH(4200))
+        expect(await Sale.redeemed(fourth.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(101))
     })
 
@@ -158,17 +235,18 @@ describe("FriesDAOTokenSale", () => {
     // Test regular purchase
 
     it("Regular FRIES purchase", async () => {
-        await Sale.connect(fourth).buyFries(toUSDC(1))
+        //await Sale.connect(fourth).buyFries(toUSDC(1))
+        await Sale.connect(sixth).buyFries(toUSDC(1))
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(102))
-        expect(await Sale.purchased(fourth.address)).to.equal(toETH(42))
-        expect(await Sale.redeemed(fourth.address)).to.equal(0)
+        expect(await Sale.purchased(sixth.address)).to.equal(toETH(42))
+        expect(await Sale.redeemed(sixth.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(102))
     })
 
     // Test regular purchase over total limit
 
     it("Regular FRIES purchase over total limit should fail", async () => {
-        await expect(Sale.connect(fourth).buyFries(toUSDC(18696969))).to.be.reverted
+        await expect(Sale.connect(sixth).buyFries(toUSDC(18696969))).to.be.reverted
     })
 
     // Test disabling regular sale
@@ -215,10 +293,10 @@ describe("FriesDAOTokenSale", () => {
     // Test special redeem FRIES
 
     it("Special redeem FRIES", async () => {
-        await Sale.connect(third).redeemFries()
-        expect(await FRIES.balanceOf(third.address)).to.equal(toETH(4200 * 0.15))
+        await Sale.connect(fourth).redeemFries()
+        expect(await FRIES.balanceOf(fourth.address)).to.equal(toETH(4200 * 0.15))
         expect(await FRIES.balanceOf(fifth.address)).to.equal(toETH(4200 * 0.85))
-        expect(await Sale.redeemed(third.address)).to.equal(toETH(4200))
+        expect(await Sale.redeemed(fourth.address)).to.equal(toETH(4200))
     })
 
     // Test redeem FRIES after already redeemed
