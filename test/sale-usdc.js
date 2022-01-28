@@ -20,7 +20,7 @@ function makeleaf(_address, _data, _decimals) {
 }
 
 const whitelist = {
-    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": [210000, false],    // 5k WL (5k * 42) vesting FALSE      second
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": [210000, false],   // 5k WL (5k * 42) vesting FALSE      second
     "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": [420000, false],   // 10 WL vesting FALSE      third
     "0x90F79bf6EB2c4f870365E785982E1f101E93b906": [5250000, true]    // 125k WL vesting TRUE     fourth
 }
@@ -94,8 +94,7 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.refundActive()).to.equal(false)
 
         expect(await Sale.salePrice()).to.equal(42)
-        expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(5000))
-        expect(await Sale.totalCap()).to.equal(toUSDC(18696969))
+        expect(await Sale.totalCap()).to.equal(toUSDC(10696969))
         expect(await Sale.totalPurchased()).to.equal(0)
     })
 
@@ -104,11 +103,7 @@ describe("FriesDAOTokenSale", () => {
     it("Owner can change parameters", async () => {
         await Sale.setSalePrice(10)
         expect(await Sale.salePrice()).to.equal(10)
-        await Sale.setBaseWhitelistAmount(toUSDC(10))
-        expect(await Sale.baseWhitelistAmount()).to.equal(toUSDC(10))
         await Sale.setSalePrice(42)
-        await Sale.setBaseWhitelistAmount(toUSDC(5000))
-
         await Sale.setRoot(tree.getHexRoot())       //e
         await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted   //e
     })
@@ -161,7 +156,7 @@ describe("FriesDAOTokenSale", () => {
             toETH(210000),
             false,
             proof
-        )).to.be.revertedWith("NotWhitelisted")
+        )).to.be.revertedWith("FriesDAOTokenSale: invalid whitelist parameters")
     })
 
     // Test whitelist purchase

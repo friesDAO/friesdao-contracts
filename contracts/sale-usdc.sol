@@ -47,16 +47,13 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
     uint256 public totalCap;            // Total maximum amount of USDC in sale
     uint256 public totalPurchased = 0;  // Total amount of USDC purchased in sale
 
-    mapping (address => uint256) public whitelist; // Mapping of account to whitelisted purchase amount in USDC in whitelisted sale
     mapping (address => uint256) public purchased; // Mapping of account to total purchased amount in FRIES
     mapping (address => uint256) public redeemed;  // Mapping of account to total amount of redeemed FRIES
     mapping (address => bool) public vesting;      // Mapping of account to vesting of purchased FRIES after redeem
+    bytes32 public merkleRoot;                     // Merkle root representing tree of all whitelisted accounts
 
     address public treasury;       // friesDAO treasury address
     uint256 public vestingPercent; // Percent tokens vested /1000
-
-    mapping(address => uint) public hasClaimed;     //e
-    bytes32 public merkleRoot;                      //e
 
     // Events
 
@@ -78,18 +75,16 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Initialize sale parameters
 
-    constructor(address usdcAddress, address friesAddress, address treasuryAddress, bytes32 _root) {
+    constructor(address usdcAddress, address friesAddress, address treasuryAddress, bytes32 root) {
         USDC = IERC20(usdcAddress);           // USDC token
         FRIES = IFriesDAOToken(friesAddress); // Set FRIES token contract
 
-        salePrice = 42;                                   // 42 FRIES per USDC
-        baseWhitelistAmount = 5000 * 10 ** USDC_DECIMALS; // Base 5,000 USDC purchasable for a whitelisted account
-        totalCap = 18696969 * 10 ** USDC_DECIMALS;        // Total 18,696,969 max USDC raised
+        salePrice = 42;                            // 42 FRIES per USDC
+        totalCap = 10696969 * 10 ** USDC_DECIMALS; // Total 10,696,969 max USDC raised
+        merkleRoot = root;                         // Merkle root for whitelisted accounts
 
         treasury = treasuryAddress; // Set friesDAO treasury address
         vestingPercent = 850;       // 85% vesting for vested allocations
-
-        merkleRoot = _root; //e
     }
 
     /*
@@ -100,19 +95,17 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
 
     // Buy FRIES with USDC in whitelisted token sale
 
-    function buyWhitelistFries(uint256 value, uint whitelistMax, bool _vesting, bytes32[] calldata proof) external {
+    function buyWhitelistFries(uint256 value, uint256 whitelistLimit, bool vestingEnabled, bytes32[] calldata proof) external {
         require(whitelistSaleActive, "FriesDAOTokenSale: whitelist token sale is not active");
         require(value > 0, "FriesDAOTokenSale: amount to purchase must be larger than zero");
 
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender, whitelistMax, _vesting)); //e
-        bool isValidLeaf = MerkleProof.verify(proof, merkleRoot, leaf);                 //e
-        require(isValidLeaf, "NotWhitelisted");                                         //e
+        bytes32 leaf = keccak256(abi.encodePacked(_msgSender(), whitelistLimit, vestingEnabled));                // Calculate merkle leaf of whitelist parameters
+        require(MerkleProof.verify(proof, merkleRoot, leaf), "FriesDAOTokenSale: invalid whitelist parameters"); // Verify whitelist parameters with merkle proof
 
-        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice;                         // Calculate amount of FRIES at sale price with USDC value
-        //uint256 whitelistMax = whitelist[_msgSender()] * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate maximum amount of FRIES available for purchase
-        require(purchased[_msgSender()] + amount <= whitelistMax, "FriesDAOTokenSale: amount over whitelist limit");
+        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice;                                   // Calculate amount of FRIES at sale price with USDC value
+        require(purchased[_msgSender()] + amount <= whitelistLimit, "FriesDAOTokenSale: amount over whitelist limit"); // Check purchase amount is within whitelist limit
 
-        if (_vesting) vesting[_msgSender()] = true;         //e
+        vesting[_msgSender()] = vestingEnabled;           // Set vesting enabled for account
         USDC.transferFrom(_msgSender(), treasury, value); // Transfer USDC amount to treasury
         purchased[_msgSender()] += amount;                // Add FRIES amount to purchased amount for account
         totalPurchased += value;                          // Add USDC amount to total USDC purchased
@@ -174,7 +167,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
      * --------------------
      */
 
-    // set the merkle root
+    // Set merkle root
     function setRoot(bytes32 _root) external onlyOwner {    //e
         merkleRoot = _root;
     }
@@ -214,39 +207,11 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         emit SalePriceChanged(salePrice);
     }
 
-    // Change base whitelist amount
-
-    function setBaseWhitelistAmount(uint256 amount) external onlyOwner {
-        baseWhitelistAmount = amount;
-        emit BaseWhitelistAmountChanged(baseWhitelistAmount);
-    }
-
     // Change sale total cap
 
     function setTotalCap(uint256 amount) external onlyOwner {
         totalCap = amount;
         emit TotalCapChanged(totalCap);
-    }
-
-    // Whitelist accounts with base whitelist allocation
-
-    function whitelistAccounts(address[] calldata accounts) external onlyOwner {
-        for (uint256 a = 0; a < accounts.length; a ++) {
-            whitelist[accounts[a]] = baseWhitelistAmount;
-        }
-    }
-
-    // Whitelist accounts with custom whitelist allocation and vesting
-
-    function whitelistAccountsWithAllocation(
-        address[] calldata accounts,
-        uint256[] calldata allocations,
-        bool[] calldata vestingEnabled
-    ) external onlyOwner {
-        for (uint256 a = 0; a < accounts.length; a ++) {
-            whitelist[accounts[a]] = allocations[a];
-            vesting[accounts[a]] = vestingEnabled[a];
-        }
     }
 
     // Change friesDAO treasury address
