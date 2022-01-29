@@ -20,6 +20,7 @@ async function deploySale(usdcAddress, friesAddress, treasuryAddress, hexRoot) {
 async function deployAll(usdcAddress, treasuryAddress, whitelist) {
     const tree = makeTree(whitelist);
     const hexRoot = tree.getHexRoot();
+    console.log(hexRoot);
     const fries = await deployFries();
     await deploySale(usdcAddress, fries.address, treasuryAddress, hexRoot);
 }

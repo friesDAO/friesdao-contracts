@@ -1,4 +1,7 @@
 require("@nomiclabs/hardhat-waffle")
+require("hardhat-gas-reporter")
+require("dotenv").config()
+require("@nomiclabs/hardhat-etherscan");
 
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
     const accounts = await hre.ethers.getSigners();
@@ -11,10 +14,19 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 module.exports = {
     networks: {
-        hardhat: {},
+        hardhat: {
+            forking : {
+                url: process.env.RPC_URL,
+                accounts: [{ privateKey: process.env.PK, balance: "10000000000000000"}]
+            }
+        },
         ropsten: {
             url: "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-            accounts: []
+            accounts: [process.env.PK]
+        },
+        mainnet: {
+            url: process.env.RPC_URL,
+            accounts: [process.env.PK]
         }
     },
     solidity: {
@@ -27,6 +39,16 @@ module.exports = {
                 }
             }
         }]
+    },
+    gasReporter: {
+      currency: 'USD',
+      gasPrice: 70,
+      coinmarketcap: process.env.COINMARKETCAP_API_KEY
+    },
+    etherscan: {
+        apiKey: {
+            ropsten: process.env.ETHERSCAN_API_KEY
+        }
     }
 }
 
