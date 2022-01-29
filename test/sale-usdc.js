@@ -2,39 +2,19 @@
 
 const { expect } = require("chai")
 const { ethers } = require("hardhat")
-const keccak256  = require("keccak256")
-const { MerkleTree } = require("merkletreejs")
+const { makeLeaf, makeTree } = require("../src/merkle")
 
 const toETH = num => ethers.utils.parseEther(num.toString())
 const toUSDC = num => ethers.utils.parseUnits(num.toString(), 6)
 
 
+const whitelist = [
+    ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8", 210000, false],   // 5k WL (5k * 42) vesting FALSE      second
+    ["0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", 420000, false],   // 10 WL vesting FALSE      third
+    ["0x90F79bf6EB2c4f870365E785982E1f101E93b906", 5250000, true]    // 125k WL vesting TRUE     fourth
+]
+
 //////////////////////////////e /////////////////////////////////////////////////
-function makeleaf(_address, _data, _decimals) {
-    const amount = _data[0]
-    const vesting = _data[1]
-    const addr = ethers.utils.getAddress(_address)
-    const value = ethers.utils.parseUnits(amount.toString(), _decimals).toString()    
-    const z = ethers.utils.solidityKeccak256(["address", "uint256", "bool"], [addr, value, vesting]).slice(2)    
-    return Buffer.from(z, "hex")
-}
-
-const whitelist = {
-    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": [210000, false],   // 5k WL (5k * 42) vesting FALSE      second
-    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": [420000, false],   // 10 WL vesting FALSE      third
-    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": [5250000, true]    // 125k WL vesting TRUE     fourth
-}
-
-const airdrop = Object.entries(whitelist).map( ([a, d]) => {
-    const z = makeleaf(a, d, 18)
-    return z
-})
-
-const tree = new MerkleTree(
-    airdrop,
-    keccak256,
-    { sort: true }
-)
 //////////////////////////////////////////////////////////////////////////////
 
 // Test FRIES token sale
@@ -45,8 +25,9 @@ describe("FriesDAOTokenSale", () => {
     let deployer, second, third, fourth, fifth, sixth
     let USDCContract, FriesContract, SaleContract
     let USDC, FRIES, Sale
-    var leaf    //e
-    var proof   //e
+    var leaf   
+    var proof  
+    let tree
 
     // Load deployment data
 
@@ -62,6 +43,7 @@ describe("FriesDAOTokenSale", () => {
             ethers.getContractFactory("FriesDAOToken"),
             ethers.getContractFactory("contracts/sale-usdc.sol:FriesDAOTokenSale")
         ])
+        tree = makeTree(whitelist);
     })
 
     // Test deployment
@@ -69,7 +51,7 @@ describe("FriesDAOTokenSale", () => {
     it("Deploy successfully", async () => {
         USDC = await USDCContract.deploy()
         FRIES = await FriesContract.deploy()
-        Sale = await SaleContract.deploy(USDC.address, FRIES.address, fifth.address, tree.getHexRoot()) //e
+        Sale = await SaleContract.deploy(USDC.address, FRIES.address, fifth.address, tree.getHexRoot())
 
         await Promise.all([
             USDC.mint(deployer.address, toUSDC(10**6)),
@@ -104,8 +86,8 @@ describe("FriesDAOTokenSale", () => {
         await Sale.setSalePrice(10)
         expect(await Sale.salePrice()).to.equal(10)
         await Sale.setSalePrice(42)
-        await Sale.setRoot(tree.getHexRoot())       //e
-        await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted   //e
+        await Sale.setRoot(tree.getHexRoot())      
+        await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted  
     })
 
     /*
@@ -128,7 +110,7 @@ describe("FriesDAOTokenSale", () => {
     // Test whitelist purchase before enabled
 
     it("Whitelisted FRIES purchase before enabled should fail", async () => {
-        leaf = makeleaf(second.address, [210000, false], 18)
+        leaf = makeLeaf(second.address, 210000, false, 18)
         proof = tree.getHexProof(leaf)
         await expect(Sale.connect(second).buyWhitelistFries(
             toUSDC(1),
@@ -148,7 +130,7 @@ describe("FriesDAOTokenSale", () => {
     // Test non-whitelisted whitelist purchase
 
     it("Non-whitelisted whitelist purchase should fail", async () => {
-        leaf = makeleaf(deployer.address, [210000, false], 18)
+        leaf = makeLeaf(deployer.address, 210000, false, 18)
         proof = tree.getHexProof(leaf)
         //await expect(Sale.connect(fourth).buyWhitelistFries(toUSDC(1))).to.be.reverted
         await expect(Sale.connect(deployer).buyWhitelistFries(
@@ -163,7 +145,7 @@ describe("FriesDAOTokenSale", () => {
 
     it("Whitelisted FRIES purchase", async () => {
         //await Sale.connect(second).buyWhitelistFries(toUSDC(1))
-        leaf = makeleaf(second.address, [210000, false], 18)
+        leaf = makeLeaf(second.address, 210000, false, 18)
         proof = tree.getHexProof(leaf)
         await Sale.connect(second).buyWhitelistFries(
             toUSDC(1),
@@ -193,7 +175,7 @@ describe("FriesDAOTokenSale", () => {
 
     it("Special whitelisted FRIES purchase", async () => { 
         //await Sale.connect(third).buyWhitelistFries(toUSDC(100))
-        leaf = makeleaf(fourth.address, [5250000, true], 18)
+        leaf = makeLeaf(fourth.address, 5250000, true, 18)
         proof = tree.getHexProof(leaf)
         await Sale.connect(fourth).buyWhitelistFries(
             toUSDC(100),
