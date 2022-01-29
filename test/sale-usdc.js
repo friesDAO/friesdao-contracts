@@ -7,6 +7,7 @@ const { makeLeaf, makeTree } = require("../src/merkle")
 const toETH = num => ethers.utils.parseEther(num.toString())
 const toUSDC = num => ethers.utils.parseUnits(num.toString(), 6)
 
+const PRICE = 43.3125031
 
 const whitelist = [
     ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8", 210000, false],   // 5k WL (5k * 42) vesting FALSE      second
@@ -75,7 +76,7 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.redeemActive()).to.equal(false)
         expect(await Sale.refundActive()).to.equal(false)
 
-        expect(await Sale.salePrice()).to.equal(toETH(43.3125031))
+        expect(await Sale.salePrice()).to.equal(toETH(PRICE))
         expect(await Sale.totalCap()).to.equal(toUSDC(9696969))
         expect(await Sale.totalPurchased()).to.equal(0)
     })
@@ -85,7 +86,7 @@ describe("FriesDAOTokenSale", () => {
     it("Owner can change parameters", async () => {
         await Sale.setSalePrice(toETH(10))
         expect(await Sale.salePrice()).to.equal(toETH(10))
-        await Sale.setSalePrice(toETH(43.3125031))
+        await Sale.setSalePrice(toETH(PRICE))
         await Sale.setRoot(tree.getHexRoot())      
         await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted  
     })
@@ -154,7 +155,7 @@ describe("FriesDAOTokenSale", () => {
             proof
         )
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1))
-        expect(await Sale.purchased(second.address)).to.equal(toETH(43.3125031))
+        expect(await Sale.purchased(second.address)).to.equal(toETH(PRICE))
         expect(await Sale.redeemed(second.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(1))
     })
@@ -215,7 +216,7 @@ describe("FriesDAOTokenSale", () => {
         //await Sale.connect(fourth).buyFries(toUSDC(1))
         await Sale.connect(sixth).buyFries(toUSDC(1))
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(102))
-        expect(await Sale.purchased(sixth.address)).to.equal(toETH(43.3125031))
+        expect(await Sale.purchased(sixth.address)).to.equal(toETH(PRICE))
         expect(await Sale.redeemed(sixth.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(102))
     })
@@ -263,8 +264,8 @@ describe("FriesDAOTokenSale", () => {
 
     it("Redeem FRIES", async () => {
         await Sale.connect(second).redeemFries()
-        expect(await FRIES.balanceOf(second.address)).to.equal(toETH(43.3125031))
-        expect(await Sale.redeemed(second.address)).to.equal(toETH(43.3125031))
+        expect(await FRIES.balanceOf(second.address)).to.equal(toETH(PRICE))
+        expect(await Sale.redeemed(second.address)).to.equal(toETH(PRICE))
     })
 
     // Test special redeem FRIES
@@ -307,8 +308,8 @@ describe("FriesDAOTokenSale", () => {
     it("Refund FRIES purchase", async () => {
         await USDC.connect(fifth).approve(Sale.address, toETH(10000000))
         const usdcBefore = await USDC.balanceOf(second.address)
-        await FRIES.connect(second).approve(Sale.address, toETH(43.3125031))
-        await Sale.connect(second).refundFries(toETH(43.3125031))
+        await FRIES.connect(second).approve(Sale.address, toETH(PRICE))
+        await Sale.connect(second).refundFries(toETH(PRICE))
         expect(await USDC.balanceOf(second.address)).to.equal(usdcBefore.add(toUSDC(1)))
         expect(await Sale.purchased(second.address)).to.equal(0)
         expect(await Sale.redeemed(second.address)).to.equal(0)
