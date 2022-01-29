@@ -79,8 +79,8 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         USDC = IERC20(usdcAddress);           // USDC token
         FRIES = IFriesDAOToken(friesAddress); // Set FRIES token contract
 
-        salePrice = 42;                            // 42 FRIES per USDC
-        totalCap = 10696969 * 10 ** USDC_DECIMALS; // Total 10,696,969 max USDC raised
+        salePrice = 43312503100000000000;          // 43.3125031 FRIES per USDC
+        totalCap = 9696969 * 10 ** USDC_DECIMALS; // Total 10,696,969 max USDC raised
         merkleRoot = root;                         // Merkle root for whitelisted accounts
 
         treasury = treasuryAddress; // Set friesDAO treasury address
@@ -102,7 +102,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender(), whitelistLimit, vestingEnabled));                // Calculate merkle leaf of whitelist parameters
         require(MerkleProof.verify(proof, merkleRoot, leaf), "FriesDAOTokenSale: invalid whitelist parameters"); // Verify whitelist parameters with merkle proof
 
-        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice;                                   // Calculate amount of FRIES at sale price with USDC value
+        uint256 amount = value * salePrice / 10 ** USDC_DECIMALS; // Calculate amount of FRIES at sale price with USDC value
         require(purchased[_msgSender()] + amount <= whitelistLimit, "FriesDAOTokenSale: amount over whitelist limit"); // Check purchase amount is within whitelist limit
 
         vesting[_msgSender()] = vestingEnabled;           // Set vesting enabled for account
@@ -121,7 +121,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         require(totalPurchased + value < totalCap, "FriesDAOTokenSale: amount over total sale limit");
 
         USDC.transferFrom(_msgSender(), treasury, value);                            // Transfer USDC amount to treasury
-        uint256 amount = value * 10 ** (FRIES_DECIMALS - USDC_DECIMALS) * salePrice; // Calculate amount of FRIES at sale price with USDC value
+        uint256 amount = value * salePrice / 10 ** USDC_DECIMALS;                    // Calculate amount of FRIES at sale price with USDC value
         purchased[_msgSender()] += amount;                                           // Add FRIES amount to purchased amount for account
         totalPurchased += value;                                                     // Add USDC amount to total USDC purchased
 
@@ -156,7 +156,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
         FRIES.burnFrom(_msgSender(), amount);                                                                     // Remove FRIES refund amount from account
         purchased[_msgSender()] -= amount;                                                                        // Reduce purchased amount of account by FRIES refund amount
         redeemed[_msgSender()] -= amount;                                                                         // Reduce redeemed amount of account by FRIES refund amount
-        USDC.transferFrom(treasury, _msgSender(), (amount / 10 ** (FRIES_DECIMALS - USDC_DECIMALS)) / salePrice); // Send refund USDC amount at sale price to account
+        USDC.transferFrom(treasury, _msgSender(), amount * 10 ** USDC_DECIMALS / salePrice); // Send refund USDC amount at sale price to account
         
         emit Refunded(_msgSender(), amount);
     }

@@ -75,17 +75,17 @@ describe("FriesDAOTokenSale", () => {
         expect(await Sale.redeemActive()).to.equal(false)
         expect(await Sale.refundActive()).to.equal(false)
 
-        expect(await Sale.salePrice()).to.equal(42)
-        expect(await Sale.totalCap()).to.equal(toUSDC(10696969))
+        expect(await Sale.salePrice()).to.equal(toETH(43.3125031))
+        expect(await Sale.totalCap()).to.equal(toUSDC(9696969))
         expect(await Sale.totalPurchased()).to.equal(0)
     })
 
     // Test change sale parameters
 
     it("Owner can change parameters", async () => {
-        await Sale.setSalePrice(10)
-        expect(await Sale.salePrice()).to.equal(10)
-        await Sale.setSalePrice(42)
+        await Sale.setSalePrice(toETH(10))
+        expect(await Sale.salePrice()).to.equal(toETH(10))
+        await Sale.setSalePrice(toETH(43.3125031))
         await Sale.setRoot(tree.getHexRoot())      
         await expect(Sale.connect(second).setRoot(tree.getHexRoot())).to.reverted  
     })
@@ -154,7 +154,7 @@ describe("FriesDAOTokenSale", () => {
             proof
         )
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(1))
-        expect(await Sale.purchased(second.address)).to.equal(toETH(42))
+        expect(await Sale.purchased(second.address)).to.equal(toETH(43.3125031))
         expect(await Sale.redeemed(second.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(1))
     })
@@ -184,7 +184,7 @@ describe("FriesDAOTokenSale", () => {
             proof
         )
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(101))
-        expect(await Sale.purchased(fourth.address)).to.equal(toETH(4200))
+        expect(await Sale.purchased(fourth.address)).to.equal(toETH(4331.25031))
         expect(await Sale.redeemed(fourth.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(101))
     })
@@ -215,7 +215,7 @@ describe("FriesDAOTokenSale", () => {
         //await Sale.connect(fourth).buyFries(toUSDC(1))
         await Sale.connect(sixth).buyFries(toUSDC(1))
         expect(await USDC.balanceOf(fifth.address)).to.equal(toUSDC(102))
-        expect(await Sale.purchased(sixth.address)).to.equal(toETH(42))
+        expect(await Sale.purchased(sixth.address)).to.equal(toETH(43.3125031))
         expect(await Sale.redeemed(sixth.address)).to.equal(0)
         expect(await Sale.totalPurchased()).to.equal(toUSDC(102))
     })
@@ -263,17 +263,17 @@ describe("FriesDAOTokenSale", () => {
 
     it("Redeem FRIES", async () => {
         await Sale.connect(second).redeemFries()
-        expect(await FRIES.balanceOf(second.address)).to.equal(toETH(42))
-        expect(await Sale.redeemed(second.address)).to.equal(toETH(42))
+        expect(await FRIES.balanceOf(second.address)).to.equal(toETH(43.3125031))
+        expect(await Sale.redeemed(second.address)).to.equal(toETH(43.3125031))
     })
 
     // Test special redeem FRIES
 
     it("Special redeem FRIES", async () => {
         await Sale.connect(fourth).redeemFries()
-        expect(await FRIES.balanceOf(fourth.address)).to.equal(toETH(4200 * 0.15))
-        expect(await FRIES.balanceOf(fifth.address)).to.equal(toETH(4200 * 0.85))
-        expect(await Sale.redeemed(fourth.address)).to.equal(toETH(4200))
+        expect(await FRIES.balanceOf(fourth.address)).to.equal(toETH(4331.25031 * 0.15))
+        expect(await FRIES.balanceOf(fifth.address)).to.equal(toETH(4331.25031 * 0.85))
+        expect(await Sale.redeemed(fourth.address)).to.equal(toETH(4331.25031))
     })
 
     // Test redeem FRIES after already redeemed
@@ -307,8 +307,8 @@ describe("FriesDAOTokenSale", () => {
     it("Refund FRIES purchase", async () => {
         await USDC.connect(fifth).approve(Sale.address, toETH(10000000))
         const usdcBefore = await USDC.balanceOf(second.address)
-        await FRIES.connect(second).approve(Sale.address, toETH(42))
-        await Sale.connect(second).refundFries(toETH(42))
+        await FRIES.connect(second).approve(Sale.address, toETH(43.3125031))
+        await Sale.connect(second).refundFries(toETH(43.3125031))
         expect(await USDC.balanceOf(second.address)).to.equal(usdcBefore.add(toUSDC(1)))
         expect(await Sale.purchased(second.address)).to.equal(0)
         expect(await Sale.redeemed(second.address)).to.equal(0)
