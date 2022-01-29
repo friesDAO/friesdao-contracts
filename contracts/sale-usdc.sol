@@ -18,7 +18,7 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";        //e
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";       
 
 import "hardhat/console.sol";
 
@@ -168,7 +168,7 @@ contract FriesDAOTokenSale is ReentrancyGuard, Ownable {
      */
 
     // Set merkle root
-    function setRoot(bytes32 _root) external onlyOwner {    //e
+    function setRoot(bytes32 _root) external onlyOwner {   
         merkleRoot = _root;
     }
 
